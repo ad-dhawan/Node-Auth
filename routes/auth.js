@@ -1,9 +1,24 @@
 const router = require("express").Router();
 const bcrypt = require("bcryptjs");
-const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const sendGridTransport = require("nodemailer-sendgrid-transport");
 const User = require("../model/User");
 const { registerValidation, loginValidation } = require("../Validation");
+
+const transporter = nodemailer.createTransport(
+  sendGridTransport({
+    auth: {
+      api_key:
+        "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",
+    },
+  })
+);
+
+//generate OTP
+var min = 10000;
+var max = 999999;
+const OTP = Math.floor(Math.random() * (max - min + 1)) + min;
 
 //REGISTER
 router.post("/register", async (req, res) => {
@@ -19,38 +34,6 @@ router.post("/register", async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
-  //Sending Automated Email
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.MAIL_EMAIL,
-      pass: process.env.MAIL_PASSWORD
-    }
-  });
-
-  //generate OTP
-  var min = 10000;
-  var max = 999999;
-  const OTP = Math.floor(Math.random() * (max - min + 1)) + min;
-  
-  const options = {
-    from: process.env.MAIL_EMAIL,
-    to: req.body.email,
-    subject: "Do Not Reply",
-    text: "Welcome to my test Auth Node JS app\nDo not share OTP with anyone\nYour OTP is" + OTP
-  }
-
-  function SendMail() {
-    transporter.sendMail(options, function(err,info) {
-      if(err){
-        console.log(err);
-        return;
-      } else {
-        console.log(info.response);
-      }
-    })
-  }
-
   //Create new user
   const user = new User({
     name: req.body.name,
@@ -59,8 +42,13 @@ router.post("/register", async (req, res) => {
   });
   try {
     const savedUser = await user.save();
-    SendMail();
     res.status(200).json(savedUser);
+    transporter.sendMail({
+      to: req.body.email,
+      from: 'official.adhawan@gmail.com',
+      subject: 'test mail',
+      text: 'This is test mail using nodemailer and SendGrid. This is your OTP ' + OTP
+    })
   } catch (err) {
     console.log(err);
   }
@@ -78,11 +66,11 @@ router.post("/login", async (req, res) => {
 
   //Check if Password is correct
   const validPass = await bcrypt.compare(req.body.password, user.password);
-  if(!validPass) return res.status(400).send('Invalid Credentials');
+  if (!validPass) return res.status(400).send("Invalid Credentials");
 
   //Create and assign Token
-  const token = jwt.sign({_id: user._id}, process.env.TOKEN_SECRET);
-  res.header('auth-token', token).send(token);
+  const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET);
+  res.header("auth-token", token).send(token);
 });
 
 module.exports = router;
