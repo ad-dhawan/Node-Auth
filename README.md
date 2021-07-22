@@ -1,2 +1,2 @@
 # Node-Auth
-Rest API's to Login and Register with encrypted Passwords and session management
+Rest API's to Login, Register and Emil verification with encrypted Passwords and session management
